@@ -1,25 +1,33 @@
 const fs = require('fs');
+const log = require('./logger');
 const request = require('request');
 const JSONStream = require('JSONStream');
 
 const emoteUrl = 'https://api.betterttv.net/2/emotes'; // TODO these don't seem to be all that exist???
+let finalCb;
 
 let jsw = JSONStream.stringify('[', ',', ']');
-let file = fs.createWriteStream('bttv_emotes.json');
-jsw.pipe(file);
+let fileStream = fs.createWriteStream('bttv_emotes.json');
+fileStream.on('finish', () => {
+    log.info('BTTV', 'bttv_emotes.json is ready.');
+    finalCb();
+});
+jsw.pipe(fileStream);
 
 
-exports.downloadAll = function () {
-    console.log('BTTV emotes downloading...');
-    fetch(emoteUrl, data => {
-        appendEmotesToFile(data.emotes, () => {
+exports.downloadAll = function (cb) {
+    finalCb = cb;
+    log.info('BTTV', 'Emotes downloading...');
+    fetchBTTV(emoteUrl, data => {
+        appendBTTVEmotesToFile(data.emotes, () => {
+            log.info('BTTV', 'Writing emotes to file...');
             jsw.end();
-            console.log('BTTV emotes downloaded, bttv_emotes.json is ready.');
         });
     });
 };
 
-appendEmotesToFile = function (emotes, cb) {
+appendBTTVEmotesToFile = function (emotes, cb) {
+    log.info('BTTV', 'Processing emotes...');
     emotes.forEach(emote => {
         let normalizedEmote =
             {
@@ -33,7 +41,7 @@ appendEmotesToFile = function (emotes, cb) {
     cb();
 };
 
-fetch = function (url, cb) {
+fetchBTTV = function (url, cb) {
     let options = {
         url: url,
         method: 'GET',
@@ -42,6 +50,9 @@ fetch = function (url, cb) {
 
     request(options, function (error, response, body) {
         if (error) console.log(error);
-        else cb(body);
+        else {
+            log.info('BTTV', 'Emotes downloaded.');
+            cb(body);
+        }
     });
 };

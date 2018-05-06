@@ -1,21 +1,28 @@
 const fs = require('fs');
+const log = require('./logger');
 const request = require('request');
 const buildUrl = require('build-url');
 const JSONStream = require('JSONStream');
 
+let finalCb;
+
 let jsw = JSONStream.stringify('[', ',', ']');
-let file = fs.createWriteStream('ffz_emotes.json');
-jsw.pipe(file);
+let fileStream = fs.createWriteStream('ffz_emotes.json');
+fileStream.on('finish', () => {
+    log.info('FFZ', 'ffz_emotes.json is ready.');
+    finalCb();
+});
+jsw.pipe(fileStream);
 
 const baseUrl = 'https://api.frankerfacez.com/v1';
 
-exports.downloadAll = function () {
+exports.downloadAll = function (cb) {
+    finalCb = cb;
     let pages = 1;
     let page = 1;
-    console.log('FFZ emotes downloading...');
+    log.info('FFZ', 'Emotes downloading...');
     contin(page, pages, () => {
         jsw.end();
-        console.log('FFZ emotes downloaded ffz_emotes.json ready.');
     });
 };
 
@@ -32,10 +39,10 @@ contin = function (page, pages, cb) {
         queryParams: emoteUrlParams
     });
 
-    fetch(pageUrl, data => {
+    fetchFFZ(pageUrl, data => {
         pages = data._pages;
-        appendEmotesToJSON(data.emoticons);
-        console.log("Downloaded page " + page + "/" + pages);
+        appendFFZEmotesToJSON(data.emoticons);
+        log.info('FFZ', "Downloaded page " + page + "/" + pages);
         setTimeout(function () {
             if (page <= pages) contin(page + 1, pages, cb);
             else cb();
@@ -43,7 +50,7 @@ contin = function (page, pages, cb) {
     });
 };
 
-appendEmotesToJSON = function (emotes) {
+appendFFZEmotesToJSON = function (emotes) {
     emotes.forEach(emote => {
         let normalizedEmote =
             {
@@ -56,7 +63,7 @@ appendEmotesToJSON = function (emotes) {
     });
 };
 
-fetch = function (url, cb) {
+fetchFFZ = function (url, cb) {
     let options = {
         url: url,
         method: 'GET',

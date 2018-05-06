@@ -1,26 +1,34 @@
 const fs = require('fs');
+const log = require('./logger');
 const request = require('request');
 const JSONStream = require('JSONStream');
 
 const emoteUrl = 'https://api.twitch.tv/kraken/chat/emoticon_images';
+let finalCb;
 
 let jsw = JSONStream.stringify('[', ',', ']');
-let file = fs.createWriteStream('twitch_emotes.json');
-jsw.pipe(file);
+let fileStream = fs.createWriteStream('twitch_emotes.json');
+fileStream.on('finish', () => {
+    log.info('Twitch', 'twitch_emotes.json is ready.');
+    finalCb();
+});
+jsw.pipe(fileStream);
 
 
-exports.downloadAll = function () {
-    console.log('Twitch emotes downloading...');
-    fetch(emoteUrl, data => {
-        appendEmotesToFile(data.emoticons, () => {
-            jsw.end(() => console.log('Twitch emotes processed, twitch_emotes.json is ready.'));
+exports.downloadAll = function (cb) {
+    finalCb = cb;
+    log.info('Twitch', 'Emotes downloading...');
+    fetchTwitch(emoteUrl, data => {
+        appendTwitchEmotesToFile(data.emoticons, () => {
+            log.info('Twitch', 'Writing emotes to file...');
+            jsw.end();
         });
     });
 };
 
-appendEmotesToFile = function (emotes, cb) {
+appendTwitchEmotesToFile = function (emotes, cb) {
+    log.info('Twitch', 'Processing emotes...');
     for (let i = 0; i < emotes.length; i++) {
-        console.log('Processing twitch emotes (' + i + 1 + '/' + emotes.length + ')');
         let emote = emotes[i];
         let normalizedEmote =
             {
@@ -35,13 +43,13 @@ appendEmotesToFile = function (emotes, cb) {
     cb();
 };
 
-fetch = function (url, cb) {
+fetchTwitch = function (url, cb) {
     let options = {
         url: url,
         method: 'GET',
         headers: {
             'Accept': 'application/vnd.twitchtv.v5+json',
-            'Client-ID': 's1f6h2yhe2bspki9s9ija7eg7xllc6'
+            'Client-ID': 'setyourid'
         },
         json: true,
         timeout: 60000
@@ -49,6 +57,9 @@ fetch = function (url, cb) {
 
     request(options, (error, response, body) => {
         if (error) console.log(error);
-        else cb(body);
+        else {
+            log.info('Twitch', 'Emotes downloaded.');
+            cb(body);
+        }
     });
 };
